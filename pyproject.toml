@@ -11,6 +11,7 @@ python = ">=3.10,<3.11"
 gym = "^0.26.2"
 gym-super-mario-bros = "^7.4.0"
 tensorflow = "^2.10.0"
+pygame = "^2.1.2"
 
 
 [build-system]
