@@ -1,7 +1,7 @@
 import numpy as np
 
 class QLearning:
-    def __init__(self, env, alpha, gamma = 0.9, epsilon = 1.0):
+    def __init__(self, env, alpha = 0.5, gamma = 0.9, epsilon = 1.0):
         self.env = env
         self.alpha = alpha
         self.gamma = gamma
@@ -13,15 +13,14 @@ class QLearning:
                 self.Q[(state, action)] = 0
 
     def train(self):
-        for i in range(n_episodes):
-            t = 0
+        for i in range(1000):
             S = self.discretize_state(env.reset())
 
             while True:
                 env.render()
 
                 # choose action A from state S using epsilon greedy policy
-                A = self.__epsilon_greedy()
+                A = self.__epsilon_greedy(S)
 
                 # take action A, take immediate reward R and move to state S_
                 new_S, reward, terminated, _ = env.step(A)
@@ -29,7 +28,7 @@ class QLearning:
 
                 # update Q values
                 if not terminated:
-                    x = gamma * greedy(self.Q, S_, self.env.action_space.n)
+                    x = gamma * self.__greedy(S_)
                     self.Q[(S, A)] += self.alpha * (reward + x - self.Q[(S, A)])
                 else:
                     self.Q[(S, A)] += self.alpha * (reward - self.Q[(S, A)])
@@ -38,7 +37,6 @@ class QLearning:
                     break
 
                 S = S_
-                t += 1
 
     @staticmethod
     def discretise_state(self, state):
@@ -52,14 +50,10 @@ class QLearning:
                                int(state[7]))
 
     def __greedy(self, state):
-        return np.argmax([self.Q[(state, action)] for action in range(self.env.action_space)])
+        return np.argmax([self.Q[(state, action)] for action in self.env.action_space])
 
     def __epsilon_greedy(self, state):
-        if np.random.random() < epsilon:
-            return random.choice(range(env_actions))
+        if np.random.random() < self.epsilon:
+            return random.choice(range(self.env.action_space.n))
         else:
             return self.__greedy(state)
-
-
-# https://github.com/lazavgeridis/LunarLander-v2/blob/main/rl_landers.py
-
