@@ -1,50 +1,41 @@
-import replay
+from collections import deque
+from gym import Env
+import gym
+import numpy as np
 
-def fill_expert_buffer():
-    # For each demo, parse the demo and add transitions to the replay buffer
-    pass
+from agent import Agent
 
-def parse_demo():
-    pass
+env = gym.make('LunarLander-v2', continuous=True)
 
-def add_transitions():
-    pass
 
-def define_action_dict():
-    pass
+def dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995):
+    scores = []  # list containing scores from each episode
+    scores_window = deque(maxlen=100)  # last 100 scores
+    eps = eps_start  # initialize epsilon
+    for i_episode in range(1, n_episodes + 1):
+        state = env.reset()
+        score = 0
+        for t in range(max_t):
+            action = agent.act(state, eps)
+            next_state, reward, done, _ = env.step(action)
+            agent.step(state, action, reward, next_state, done)
+            state = next_state
+            score += reward
+            if done:
+                break
+        scores_window.append(score)
+        scores.append(score)
+        eps = max(eps_end, eps_decay * eps)
+        print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
+        if i_episode % 100 == 0:
+            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
+        if np.mean(scores_window) >= 200.0:
+            print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode - 100,
+                                                                                       np.mean(scores_window)))
+            # torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pth')
+            break
+    return scores
 
-def make_env():
-    pass
-
-def build_model():
-    pass
-
-def train_model():
-    pass
-
-if __name__ == "main":
-    # Create the environment
-    env, n_actions = make_env(
-        game="CarRacing-v2",
-        stack=True,
-        scale_rew=False,
-        scenario="contest",
-        is_content_env=False,
-        action_dict=define_action_dict(),
-    )
-
-    # Fill expert buffer
-    expert_buffer = replay.PrioritizedReplayBuffer(500000)
-    expert_buffer = fill_expert_buffer(expert_buffer)
-
-    # Build models
-    pre_train_model = build_model(n_actions)
-    target_model = build_model(n_actions)
-
-    # Pre-train model
-    target_model, expert_buffer = train_model(pre_train_model, target_model, expert_buffer, n_actions, batch_size=32, train_steps=750000),
-
-    # Copy model to target model
-
-    # Train model
-
+agent = Agent(state_size=8, action_size=2, seed=0)
+scores = dqn()
+        
