@@ -13,7 +13,7 @@ def discretize_state(s):
 
 def init_Q_values():
     Q = {}
-    for action in range(0,4):
+    for action in range(4):
         for x_position in range(-1.5, 1.5, 0.1):
             for y_position in range(-1.5, 1.5, 0.1):
                 for x_velocity in range(-1.5, 1.5, 0.1):
@@ -34,6 +34,7 @@ class QLearning:
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
+        self.actions = range(4)
         self.Q = init_Q_values()
 
     def train(self):
@@ -51,7 +52,7 @@ class QLearning:
                 # S_, reward, terminated, _, _ = self.env.step(A)
                 new_S, reward, terminated, _, _ = self.env.step(A)
 
-                S_ = discretize_state(new_S, 2)
+                S_ = discretize_state(new_S)
 
                 # update Q values
                 if not terminated:
@@ -64,7 +65,7 @@ class QLearning:
                 S = S_
 
     def __greedy(self, state):
-        return np.argmax([self.Q[(state, action)] for action in range(4)])
+        return np.argmax([self.Q[(state, action)] for action in self.actions])
 
     def __epsilon_greedy(self, state):
         if np.random.random() < self.epsilon:
