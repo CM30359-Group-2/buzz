@@ -3,29 +3,37 @@ import random
 
 import numpy as np
 
+class Transition:
+    def __init__(self, state, action, reward, next_state, done):
+        self.state = state
+        self.action = action
+        self.reward = reward
+        self.next_state = next_state
+        self.done = done
+
 
 class ReplayBuffer:
-    def __init__(self, action_size, buffer_size, batch_size, seed):
-        self.action_size = action_size
-        self.memory = deque(maxlen=buffer_size)
+    current_index = 0
+
+    def __init__(self, buffer_size, batch_size, seed):
+        self.size = buffer_size
+        self.memory = []
         self.batch_size = batch_size
-        self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
         self.seed = random.seed(seed)
 
-    def add(self, state, action, reward, next_state, done):
-        e = self.experience(state, action, reward, next_state, done)
-        self.memory.append(e)
+    def add(self, transition: Transition):
+        if len(self.memory) < self.size:
+            self.memory.append(transition)
+        else:
+            self.memory[self.current_index] = transition
+            self.__increment_current_index(self)
+        
 
-    def sample(self):
-        experiences = random.sample(self.memory, k=self.batch_size)
-
-        states = np.vstack([e.state for e in experiences if e is not None])
-        actions = np.vstack([e.action for e in experiences if e is not None])
-        rewards = np.vstack([e.reward for e in experiences if e is not None])
-        next_states = np.vstack([e.next_state for e in experiences if e is not None])
-        dones = np.vstack([e.done for e in experiences if e is not None])
-
-        return (states, actions, rewards, next_states, dones)
+    def sample(self) -> "list[Transition]":
+        return random.sample(self.memory, k=self.batch_size)
     
     def __len__(self):
         return len(self.memory)
+
+    def __increment_current_index(self):
+        self.current_index = (self.current_index + 1) % self.size
