@@ -1,21 +1,32 @@
 import numpy as np
 
 
-def discretize_state(s, ep):
-    state_ = s
-    # print(ep, "State in discretize:", state_)
-    # print(type(state_))
-    discrete_state = (min(2, max(-2, int(state_[0] / 0.05))), \
-                        min(2, max(-2, int(state_[1] / 0.1))), \
-                        min(2, max(-2, int(state_[2] / 0.1))), \
-                        min(2, max(-2, int(state_[3] / 0.1))), \
-                        min(2, max(-2, int(state_[4] / 0.1))), \
-                        min(2, max(-2, int(state_[5] / 0.1))), \
-                        int(state_[6]), \
-                        int(state_[7]))
-    # print("Discrete state:  ",discrete_state)
-    # print(type(discrete_state))
-    return discrete_state
+def discretize_state(s):
+    return (min(1.5, max(-1.5, int(s[0] / 0.1))),   # x_position
+            min(1.5, max(-1.5, int(s[1] / 0.1))),   # y_position
+            min(5.0, max(-5.0, int(s[2] / 0.1))),   # x_velocity
+            min(5.0, max(-5.0, int(s[3] / 0.1))),   # y_velocity
+            min(3.14, max(-3.14, int(s[4] / 0.1))), # angle
+            min(5.0, max(-5.0, int(s[5] / 0.1))),   # angular_velocity
+            int(s[6]),                              # leg0_contact
+            int(s[7]))                              # leg1_contact
+
+def init_Q_values():
+    Q = {}
+    for action in range(0,4):
+        for x_position in range(-1.5, 1.5, 0.1):
+            for y_position in range(-1.5, 1.5, 0.1):
+                for x_velocity in range(-1.5, 1.5, 0.1):
+                    for y_velocity in range(-1.5, 1.5, 0.1):
+                        for angle in range(-1.5, 1.5, 0.1):
+                            for angular_velocity in range(-1.5, 1.5, 0.1):
+                                for leg0_contact in range(0, 2):
+                                    for leg1_contact in range(0, 2):
+                                        state = (x_position, y_position, x_velocity, y_velocity, angle, angular_velocity, leg0_contact, leg1_contact)
+                                        Q[(state, action)] = 0
+
+    return Q
+
 
 class QLearning:
     def __init__(self, env, alpha = 0.5, gamma = 0.9, epsilon = 1.0):
@@ -23,48 +34,25 @@ class QLearning:
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
-
-        self.Q = {}
-        #num actions = 4
-
-        for act in range(0,4):
-            for a in range(-2,3):
-                for b in range(-2,3):
-                    for c in range(-2,3):
-                        for d in range(-2,3):
-                            for e in range(-2,3):
-                                for f in range(-2,3):
-                                    for g in range(0,2):
-                                        for h in range(0,2):
-                                            temp = {((a,b,c,d,e,f,g,h),act):0}
-                                            self.Q.update(temp)
-        
-        # print(self.Q)
-
-
-       
+        self.Q = init_Q_values()
 
     def train(self):
         for i in range(100000):
 
-            S = discretize_state(self.env.reset()[0], i)
-            #S = self.env.reset()
+            S = discretize_state(self.env.reset()[0])
 
             while True:
-
-                
                 self.env.render()
 
                 # choose action A from state S using epsilon greedy policy
                 A = self.__epsilon_greedy(S)
-                # print(A)
-                # print("Action^\n\n")
+
                 # take action A, take immediate reward R and move to state S_
                 # S_, reward, terminated, _, _ = self.env.step(A)
                 new_S, reward, terminated, _, _ = self.env.step(A)
-                # print(new_S)
-                # print("New State^\n\n")
+
                 S_ = discretize_state(new_S, 2)
+
                 # update Q values
                 if not terminated:
                     x = self.gamma * self.__greedy(S_)
