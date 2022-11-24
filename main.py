@@ -8,7 +8,7 @@ def car_callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
     print(obs_t)
 
 
-env = gym.make("LunarLander-v2", render_mode="human", continuous=False)
+env = gym.make("LunarLander-v2", continuous=False)
 
 #play(env, noop=np.array([0,0,0]), callback=car_callback)
 
