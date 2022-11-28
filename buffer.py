@@ -1,7 +1,5 @@
-from collections import deque, namedtuple
 import random
 
-import numpy as np
 
 class Transition:
     def __init__(self, state, action, reward, next_state, done):
@@ -26,12 +24,11 @@ class ReplayBuffer:
             self.memory.append(transition)
         else:
             self.memory[self.current_index] = transition
-            self.__increment_current_index(self)
-        
+            self.__increment_current_index()
 
     def sample(self) -> "list[Transition]":
-        return random.sample(self.memory, k=self.batch_size)
-    
+        return random.sample(self.memory, self.batch_size)
+
     def __len__(self):
         return len(self.memory)
 
