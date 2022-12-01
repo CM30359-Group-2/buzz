@@ -61,7 +61,7 @@ class QLearning:
                     break
                 S = S_
             
-            if i%100 == 0:
+            if i%100 == 0 and i != 0:
                 average_return.append(total/100)
                 total = 0.0
 
