@@ -15,14 +15,8 @@ from q_network import QNetwork, masked_huber_loss
 env = gym.make('LunarLander-v2')
 
 
-def calculate_target_values(agent, target_agent, state_transitions, discount_factor):
-    states = []
-    new_states = []
-    for transition in state_transitions:
-        states.append(transition.state)
-        new_states.append(transition.next_state)
-
-    new_states = np.array(new_states)
+def calculate_target_values(agent, target_agent, state_transitions: 'list[Transition]', discount_factor):
+    new_states = np.array([t.next_state for t in state_transitions])
 
     q_values = agent.get_multiple_q_values(new_states)
     target_q_values = target_agent.get_multiple_q_values(new_states)
@@ -70,7 +64,7 @@ def select_best_action(q_values):
 
 
 def dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995):
-    replay_buffer = ReplayBuffer(1000, 64, 0)
+    replay_buffer = ReplayBuffer(1000, 64, 42)
     agent = QNetwork(env.observation_space.shape[0] + 1, 4)
     target_agent = QNetwork(
         env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
@@ -132,11 +126,12 @@ def dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.99
 
 
 def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995, pre_training_updates=40000):
-    replay_buffer = PrioritisedReplayBuffer(1000, 64, 1)
-    agent = QNetwork(env.observation_space.shape[0] + 1, 4)
+    replay_buffer = PrioritisedReplayBuffer(1000, 64, 0.6)
+    agent = QNetwork(env.observation_space.shape[0], 4)
     target_agent = QNetwork(
-        env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
+        env.observation_space.shape[0], 4, copy_model(agent.model))
     epsilon = eps_start
+    beta = 0.4
     step_count = 0
 
     # Load the expert data
@@ -161,17 +156,17 @@ def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.9
 
     # Pre-train the model
     print("Pre-training model")
-    for steps in range(pre_training_updates):
-        batch = replay_buffer.sample()
+    for step in range(pre_training_updates):
+        batch = replay_buffer.sample(beta)
         targets = calculate_target_values(
             agent, target_agent, batch, 0.99)
         states = np.array(
             [state_transition.state for state_transition in batch])
         train_model(agent.model, states, targets)
 
-        if steps % 1000 == 0:
+        if step % 1000 == 0:
             # Update the target network
-            print(f"Updating target network after {steps} steps")
+            print(f"Updating target network after {step} steps")
             target_agent = QNetwork(
                 env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
 
@@ -210,7 +205,7 @@ def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.9
                     env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
 
             if len(replay_buffer) >= 256 and step_count % 4 == 0:
-                batch = replay_buffer.sample()
+                batch = replay_buffer.sample(beta)
                 targets = calculate_target_values(
                     agent, target_agent, batch, 0.99)
                 states = np.array(
@@ -229,6 +224,9 @@ def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.9
 
         epsilon *= eps_decay
         epsilon = max(epsilon, eps_end)
+        # Linearly increase beta towards 1 at the end of training
+        beta = min(1.0, beta + 0.001)
 
 
+# scores = dqd()
 scores = dqfd()
