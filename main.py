@@ -1,3 +1,5 @@
+import json
+import os
 import random
 import shutil
 import uuid
@@ -6,6 +8,7 @@ import numpy as np
 from keras import models
 
 from buffer import ReplayBuffer, Transition
+from prioritised_replay_buffer import PrioritisedReplayBuffer
 from q_network import QNetwork, masked_huber_loss
 
 
@@ -128,4 +131,104 @@ def dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.99
         epsilon = max(epsilon, eps_end)
 
 
-scores = dqn()
+def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995, pre_training_updates=40000):
+    replay_buffer = PrioritisedReplayBuffer(1000, 64, 1)
+    agent = QNetwork(env.observation_space.shape[0] + 1, 4)
+    target_agent = QNetwork(
+        env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
+    epsilon = eps_start
+    step_count = 0
+
+    # Load the expert data
+    print("Loading expert data")
+    # For all json files in demo directory
+    transition_total = 0
+    for file in os.listdir("demos"):
+        # Load the json file
+        with open(os.path.join("demos", file)) as json_file:
+            print(f"Loading {file}")
+            # For all transitions in the json file
+            demo = json.load(json_file)
+            for transition in demo["data"]:
+                transition_total += 1
+                # Create a state transition from the json data
+                state_transition = Transition(
+                    np.array(transition["obs_t"]), transition["action"], transition["rew"], np.array(transition["obs_tp1"]), transition["terminated"])
+                # Add the transition to the replay buffer
+                replay_buffer.add(state_transition)
+
+    print(f"Loaded {transition_total} transitions")
+
+    # Pre-train the model
+    print("Pre-training model")
+    for steps in range(pre_training_updates):
+        batch = replay_buffer.sample()
+        targets = calculate_target_values(
+            agent, target_agent, batch, 0.99)
+        states = np.array(
+            [state_transition.state for state_transition in batch])
+        train_model(agent.model, states, targets)
+
+        if steps % 1000 == 0:
+            # Update the target network
+            print(f"Updating target network after {steps} steps")
+            target_agent = QNetwork(
+                env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
+
+    print("Finished pre-training")
+
+    for episode in range(n_episodes):
+        print(f"Starting episode {episode} with epsilon {epsilon}")
+
+        episode_reward = 0
+        state = env.reset()[0]
+        fraction_finished = 0.0
+        state = np.append(state, fraction_finished)
+
+        for step in range(1, max_t + 1):
+            step_count += 1
+            q_values = agent.get_q_values(state)
+            action = select_action_epsilon_greedy(q_values, epsilon)
+            new_state, reward, done, info, _ = env.step(action)
+
+            fraction_finished = (step + 1) / max_t
+            new_state = np.append(new_state, fraction_finished)
+
+            episode_reward += reward
+
+            if step == max_t:
+                done = True
+
+            state_transition = Transition(
+                state, action, reward, new_state, done)
+            replay_buffer.add(state_transition)
+
+            state = new_state
+
+            if step_count % 1000 == 0:
+                target_agent = QNetwork(
+                    env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
+
+            if len(replay_buffer) >= 256 and step_count % 4 == 0:
+                batch = replay_buffer.sample()
+                targets = calculate_target_values(
+                    agent, target_agent, batch, 0.99)
+                states = np.array(
+                    [state_transition.state for state_transition in batch])
+                train_model(agent.model, states, targets)
+
+            if done:
+                break
+
+        print(
+            f"Episode {episode} finished after {step} steps with reward {episode_reward}")
+        if episode != 0 and episode % 5 == 0:
+            backup_file = f"model_{episode}.h5"
+            print(f"Backing up model to {backup_file}")
+            agent.model.save(backup_file)
+
+        epsilon *= eps_decay
+        epsilon = max(epsilon, eps_end)
+
+
+scores = dqfd()
