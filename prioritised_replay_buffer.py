@@ -1,131 +1,104 @@
 import random
 import numpy as np
+from buffer import Transition
 
-class ReplayBuffer:
 
-    def __init(self, capacity, prioritsationAmount):
+class PrioritisedReplayBuffer:
 
-        self.capacity = capacity # capacity of the binary tree
-        self.prioritsationAmount = prioritsationAmount # prioritsationAmount dictates how much prioritsation is used, 0  = unifrom prioritsation
-        
-        self.prioritySum = [0 for idx in range(2 * self.capacity)]
-        self.priorityMin = [float('inf') for idx in range(2 * self.capacity)]
+    def __init__(self, capacity, batch_size, prioritisation_amount):
+        """
+        Construct a new replay buffer.
 
-        self.maxPriority = 1
+        :param capacity: The maximum number of transitions that can be stored in the buffer.
+        :param prioritisation_amount: The amount of prioritisation to use. 0 is uniform prioritisation, 1 is full prioritisation.
+        """
+        self.capacity = capacity
+        self.batch_size = batch_size
+        self.prioritisation_amount = prioritisation_amount
+        self.priority_sum = [0 for _ in range(2 * self.capacity)]
+        self.priority_min = [float('inf') for _ in range(2 * self.capacity)]
+        self.max_priority = 1
+        self.data = [None for _ in range(self.capacity)]
+        self.next_index = 0
+        self.size = 0
 
-        self.data = {
-            'obs_t': np.zeros(shape=(capacity, 4, 84, 84), dtype=np.uint8),
-            'obs_tp1': np.zeros(shape=(capacity, 4, 84, 84), dtype=np.uint8),
-            'action': np.zeros(shape=capacity, dtype=np.int32),
-            'rew': np.zeros(shape=capacity, dtype=np.float32),
-            'terminated': np.zeros(shape=capacity, dtype=np.bool),
-            'truncated': np.zeros(shape=capacity, dtype=np.bool),
+    def add(self, transition: Transition):
+        index = self.next_index  # get the available slot
+        self.data[index] = transition  # add the transition to the slot
 
-        }
+        # increment the next available slot
+        self.next_index = (index + 1) % self.capacity
+        self.size = min(self.capacity, self.size + 1)  # calculate the size
 
-        self.nextIdx = 0 # index of the next empty slot
-
-        self.size = 0 # sixe of the replay buffer
-
-    def add(self, obs_t, obs_tp1, action, rew, terminated, truncated):
-
-        idx = self.nextIdx # get the available slot
-
-        # store data in the queue
-        self.data['obs_t'][idx] = obs_t
-        self.data['obs_tp1'][idx] = obs_tp1
-        self.data['action'][idx] = action
-        self.data['rew'][idx] = rew
-        self.data['terminated'][idx] = terminated
-        self.data['truncated'][idx] = truncated
-
-        self.nextIdx = (idx + 1) % self.capacity # increment the next available slot
-
-        self.size = min(self.capacity, self.size + 1) # calculate the size
-
-        priorityAlpha = self.maxPriority ** self.prioritsationAmount # new sample get maxPriority
+        # new sample get maxPriority
+        priority_alpha = self.max_priority ** self.prioritisation_amount
 
         # update the two segment trees
-        self._setPriorityMin(idx, priorityAlpha)
-        self._setPrioritySum(idx, priorityAlpha)
+        self._set_priority_min(index, priority_alpha)
+        self._set_priority_sum(index, priority_alpha)
 
-    def _setPriorityMin(self, idx, priorityAlpha):
+    def _set_priority_min(self, index, priority_alpha):
+        index += self.capacity
+        self.priority_min[index] = priority_alpha
 
-        idx += self.capacity
-        self.priorityMin[idx] = priorityAlpha
-
-        #traverse the tree up to the the root
-        while idx >= 2:
-
-            idx //= 2 # idx of the parent node
-
+        # traverse the tree up to the the root
+        while index >= 2:
+            index //= 2  # visit the parent node
             # value of the parent node is the minimum of the left and right node
-            self.priorityMin[idx] = min(self.priorityMin[idx * 2], self.priorityMin[idx * 2 + 1])
+            self.priority_min[index] = min(
+                self.priority_min[index * 2], self.priority_min[index * 2 + 1])
 
-    def _setPrioritySum(self, idx, priority):
-
-        idx += self.capacity
-
-        self.prioritySum[idx] = priority
-
-        while idx >= 2:
-
-            idx //= 2 # idx of the parent node
-
-            self.prioritySum = self.prioritySum[idx * 2] + self.prioritySum[idx * 2 + 1]
+    def _set_priority_sum(self, index, priority):
+        index += self.capacity
+        self.priority_sum[index] = priority
+        while index >= 2:
+            index //= 2  # Visit the parent node
+            self.priority_sum = self.priority_sum[index *
+                                                  2] + self.priority_sum[index * 2 + 1]
 
     def _sum(self):
-
-        return self.prioritySum[1] # root node is the sum of all the values
+        return self.priority_sum[1]  # root node is the sum of all the values
 
     def _min(self):
+        return self.priority_min[1]  # root node is the min of all the values
 
-        return self.priorityMin[1] # root node is the min of all the values
-
-
-    def findPrefixSumIdx(self, prefixSum):
-
-        idx = 1
-        while idx < self.capacity:
-
-            if self.prioritySum[idx * 2] > prefixSum:
-
-                idx *= 2
-
+    def find_prefix_sum_index(self, prefix_sum):
+        index = 1
+        while index < self.capacity:
+            if self.priority_sum[index * 2] > prefix_sum:
+                index *= 2
             else:
+                prefix_sum -= self.priority_sum[index * 2]
+                index = index * 2 + 1
 
-                prefixSum -= self.prioritySum[idx * 2]
-                idx = idx * 2 + 1
+        return index - self.capacity
 
-        return idx - self.capacity
-
-    def sample(self, batchSize, beta):
-
+    def sample(self,  beta) -> "list[Transition]":
         samples = {
 
-            'weights': np.zeros(shape=batchSize, dtype=np.float32),
-            'indexes': np.zeros(shape=batchSize, dtype=np.int32)
+            'weights': np.zeros(shape=self.batch_size, dtype=np.float32),
+            'indexes': np.zeros(shape=self.batch_size, dtype=np.int32)
 
         }
 
-        for jdx in range(batchSize):
-            p = random.random() * self.findPrefixSumIdx(p)
-            idx = self.findPrefixSumIdx(p)
+        for jdx in range(self.batch_size):
+            p = random.random() * self.find_prefix_sum_index(p)
+            idx = self.find_prefix_sum_index(p)
             samples['indexes'][jdx] = idx
 
-        probMin = self._min() / self._sum()
+        minimum_probability = self._min() / self._sum()
 
-        maxWeight = (probMin * self.size) ** (-beta)
+        max_weight = (minimum_probability * self.size) ** (-beta)
 
-        for jdx in range(batchSize):
+        for jdx in range(self.batch_size):
 
-            idx = samples['indexes'][i]
+            idx = samples['indexes'][jdx]
 
-            prob = self.priority_sum[idx + self.capacity] / self._sum()
+            probability = self.priority_sum[idx + self.capacity] / self._sum()
 
-            weight = (prob * self.size) ** (-beta)
+            weight = (probability * self.size) ** (-beta)
 
-            samples['weights'][jdx] = weight / maxWeight
+            samples['weights'][jdx] = weight / max_weight
 
         for k, v in self.data.items():
 
@@ -137,19 +110,12 @@ class ReplayBuffer:
 
         for idx, priority in zip(indexes, priorities):
 
-            self.maxPriority = max(self.maxPriority, priority)
+            self.max_priority = max(self.max_priority, priority)
 
-            priorityAlpha = priority ** self.prioritsationAmount
+            priority_alpha = priority ** self.prioritisation_amount
 
-            self._setPrioritySum(idx, priorityAlpha)
-            self._setPriorityMin(idx, priorityAlpha)
+            self._set_priority_sum(idx, priority_alpha)
+            self._set_priority_min(idx, priority_alpha)
 
     def is_full(self):
-
-        if self.capacity == self.size:
-
-            return True
-
-        else:
-
-            return False
+        return self.capacity == self.size
