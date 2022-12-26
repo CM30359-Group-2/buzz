@@ -1,5 +1,8 @@
 import numpy as np
 import gym
+import pickle
+import matplotlib.pyplot as plt
+
 
 def clamp_value(value, min_value, max_value, step):
     return min(max_value, max(min_value, int(value / step)))
@@ -36,11 +39,29 @@ class QLearning:
                                             self.Q.update({(state,action):0.0})
 
     def train(self):
+
         average_return = []
-        total = 0.0
-        
+        total_hundred = 0.0
+        y= []
+        while True:
+            which_dict = input("Use saved Dict(S), or make a new Dict(N)")
+            if which_dict.lower() == "s":
+                self.Q = pickle.load(open("dict", "rb"))
+                print(self.Q)
+                break
+            elif which_dict.lower() == "n":
+                break
+
+        rendering = int(input("How often do you want to render?"))
+         
+        rolling = np.zeros(100)
         # for 10000 episodes
         for i in range(10000):
+            total_ep = 0.0
+            if i%rendering == 0:
+                self.env = gym.make("LunarLander-v2", render_mode = "human", continuous=False)
+            else:
+                self.env = env = gym.make("LunarLander-v2", continuous=False)
             # decay epsilon until it is 0.02 so it searches less each episode and relies
             # more on experience rather than exploration
             self.epsilon = max(self.epsilon * 0.995, 0.02)
@@ -58,8 +79,8 @@ class QLearning:
                 new_S, reward, terminated, _, _ = self.env.step(A)
                 S_ = discretize_state(new_S)
 
-                total += reward
-
+                total_hundred += reward
+                total_ep += reward
                 # update Q values
                 if not terminated:
                     self.Q[(S, A)] += self.alpha * (reward + self.gamma * self.__greedy(S_) - self.Q[(S, A)])
@@ -69,12 +90,32 @@ class QLearning:
 
                 S = S_
 
+            #Calculates rolling average
+            rolling = np.roll(rolling, 1)
+            rolling[0] = total_ep
+            if i >= 99:
+                y.append(np.mean(rolling))
+
             # accumulate average score over 100 episodes
             if i % 100 == 0 and i > 0:
-                print(total/100)
-                average_return.append(total / 100)
-                total = 0.0
+                print(i, total_hundred/100)
+                average_return.append(total_hundred / 100)
+                total_hundred = 0.0
 
+        
+        #Plot the data
+        x = list(range(100,len(y)+100))
+        plt.plot(x,y)
+        plt.xlabel("x - Episode Number")
+        plt.ylabel("y - Average reward (per 100)")
+        plt.show()
+
+        #Save the Q values
+        try:
+            file = open("dict", "wb")
+            pickle.dump(self.Q, file)
+        except:
+            print("Something went wrong")
         return average_return
 
     def __greedy(self, state):
