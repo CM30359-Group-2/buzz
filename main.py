@@ -126,7 +126,7 @@ def dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.99
 
 
 def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995, pre_training_updates=40000):
-    replay_buffer = PrioritisedReplayBuffer(1000, 64, 0.6)
+    replay_buffer = PrioritisedReplayBuffer(1000000, 64, 0.6)
     agent = QNetwork(env.observation_space.shape[0], 4)
     target_agent = QNetwork(
         env.observation_space.shape[0], 4, copy_model(agent.model))
