@@ -28,7 +28,7 @@ def game_callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
     # Write to file
 
     stateData = {
-        "obs_t": obs_t[0].tolist(),
+        "obs_t": obs_t.tolist(),
         "obs_tp1": obs_tp1.tolist(),
         "action": action.tolist(),
         "rew": rew,
