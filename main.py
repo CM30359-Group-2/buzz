@@ -138,9 +138,15 @@ def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.9
     print("Loading expert data")
     # For all json files in demo directory
     transition_total = 0
-    for file in os.listdir("demos"):
+
+    script_dir = os.path.dirname(__file__)
+    rel_path = "demos"
+    abs_file_path = os.path.join(script_dir, rel_path)
+    print(abs_file_path)
+
+    for file in os.listdir(abs_file_path):
         # Load the json file
-        with open(os.path.join("demos", file)) as json_file:
+        with open(os.path.join(abs_file_path, file)) as json_file:
             print(f"Loading {file}")
             # For all transitions in the json file
             demo = json.load(json_file)
