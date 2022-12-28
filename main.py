@@ -174,7 +174,7 @@ def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.9
             # Update the target network
             print(f"Updating target network after {step} steps")
             target_agent = QNetwork(
-                env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
+                env.observation_space.shape[0], 4, copy_model(agent.model))
 
     print("Finished pre-training")
 
@@ -182,18 +182,19 @@ def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.9
         print(f"Starting episode {episode} with epsilon {epsilon}")
 
         episode_reward = 0
-        state = env.reset()[0]
-        fraction_finished = 0.0
-        state = np.append(state, fraction_finished)
+        state = env.reset()
+        print(state)
+        # fraction_finished = 0.0
+        # state = np.append(state, fraction_finished)
 
         for step in range(1, max_t + 1):
             step_count += 1
             q_values = agent.get_q_values(state)
             action = select_action_epsilon_greedy(q_values, epsilon)
-            new_state, reward, done, info, _ = env.step(action)
+            new_state, reward, done, info = env.step(action)
 
-            fraction_finished = (step + 1) / max_t
-            new_state = np.append(new_state, fraction_finished)
+            # fraction_finished = (step + 1) / max_t
+            # new_state = np.append(new_state, fraction_finished)
 
             episode_reward += reward
 
@@ -208,7 +209,7 @@ def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.9
 
             if step_count % 1000 == 0:
                 target_agent = QNetwork(
-                    env.observation_space.shape[0] + 1, 4, copy_model(agent.model))
+                    env.observation_space.shape[0], 4, copy_model(agent.model))
 
             if len(replay_buffer) >= 256 and step_count % 4 == 0:
                 batch = replay_buffer.sample(beta)
