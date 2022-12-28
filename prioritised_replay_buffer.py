@@ -119,3 +119,6 @@ class PrioritisedReplayBuffer:
 
     def is_full(self):
         return self.capacity == self.size
+
+    def __len__(self):
+        return self.next_index
