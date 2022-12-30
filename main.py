@@ -125,7 +125,7 @@ def dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.99
         epsilon = max(epsilon, eps_end)
 
 
-def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995, pre_training_updates=40000):
+def dqfd(n_episodes=2000, max_t=1500, eps_start=1.0, eps_end=0.01, eps_decay=0.995, pre_training_updates=40000):
     replay_buffer = PrioritisedReplayBuffer(500000, 64, 0.6)
     agent = QNetwork(env.observation_space.shape[0] + 1, 4)
     target_agent = QNetwork(
@@ -228,15 +228,13 @@ def dqfd(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.9
 
         print(
             f"Episode {episode} finished after {step} steps with reward {episode_reward}")
-        if episode != 0 and episode % 5 == 0:
+        if episode != 0 and episode % 50 == 0:
             backup_file = f"model_{episode}.h5"
             print(f"Backing up model to {backup_file}")
-            agent.model.save(backup_file)
+            agent.model.save(os.path.join(script_dir, backup_file))
 
-        epsilon *= eps_decay
-        epsilon = max(epsilon, eps_end)
-        # Linearly increase beta towards 1 at the end of training
-        beta = min(1.0, beta + 0.001)
+        # Linear annealing
+        epsilon = max(epsilon - ((eps_start - eps_end) / n_episodes), eps_end)
 
 
 # scores = dqd()
