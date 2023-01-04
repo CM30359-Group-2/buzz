@@ -58,10 +58,11 @@ class QLearning:
                 break
 
         rendering = int(input("How often do you want to render?"))
+        train_ep = int(input("How many episodes do you want to train for?"))
 
         rolling = np.zeros(100)
         # for 10000 episodes
-        for i in range(10000):
+        for i in range(train_ep):
             total_ep = 0.0
             if i % rendering == 0:
                 self.env = gym.make(
@@ -105,7 +106,7 @@ class QLearning:
 
             # accumulate average score over 100 episodes
             if i % 100 == 0 and i > 0:
-                print(i, total_hundred/100)
+                print("Episode Number: ",i," Average of previous 100: ", total_hundred/100)
                 average_return.append(total_hundred / 100)
                 total_hundred = 0.0
 
