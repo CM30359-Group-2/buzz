@@ -4,6 +4,7 @@ import gym
 import numpy as np
 from agents.dqn import DQN
 from agents.ddqn import DDQN
+from agents.dqfd import DQFD
 
 if __name__ == '__main__':
     script_dir = os.path.dirname(__file__)
@@ -27,7 +28,8 @@ if __name__ == '__main__':
         rewards = agent.train(env, 1000)
     elif algorithm == 'dqfd':
         print("Running Deep Q-learning from Demonstrations")
-        pass
+        agent = DQFD(action_space=env.action_space.n, state_space=env.observation_space.shape[0])
+        rewards = agent.train(env, 1000)
     else:
         print("That is not a permitted algorithm")
         exit(1)
