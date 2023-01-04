@@ -1,5 +1,5 @@
-from gymnasium import Env
-from agents.memories.memory import Memory
+from gym import Env
+from agents.memory import Memory
 from agents.transition import Transition
 
 class Agent:
@@ -17,7 +17,7 @@ class Agent:
     def remember(self, transition: Transition):
         self.memory.add(transition)
     
-    def checkpoint(self, episode: int):
+    def save_model(self, episode: int):
         pass
 
     def load(self):

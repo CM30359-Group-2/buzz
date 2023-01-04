@@ -1,36 +1,44 @@
 import os
+import random
+from gym import Env
 
 import numpy as np
 from agents.agent import Agent
-from buffer import ReplayBuffer, Transition
+from buffer import ReplayBuffer
 from keras import Sequential
 from keras.layers import Dense
+from keras.optimizers import Adam
 
-class dqn(Agent):
-    def __init__(self, action_space, state_space):
+from agents.transition import Transition
+
+class DQN(Agent):
+    batch_size = 64
+    memory_size = 1000000
+    seed = 42
+
+    def __init__(self, action_space, state_space, checkpoint=False):
+        Agent.__init__(self, action_space, state_space, ReplayBuffer(self.memory_size, self.batch_size, self.seed))
+        self.checkpoint = checkpoint
         self.epsilon = 1.0
         self.epsilon_decay = 0.995
         self.epsilon_min = 0.01
         self.learning_rate = 0.001
-        self.model = self.build_model()
         self.gamma = 0.99
-        self.batch_size = 64
         self.max_steps = 2000
-
-        Agent.__init__(self, action_space, state_space, ReplayBuffer(1000000, self.batch_size, 42))
+        self.model = self.build_model()
         
     def build_model(self):
         model = Sequential()
         model.add(Dense(150, input_dim=self.state_space, activation='relu'))
-        model.add(Dense(200, activation='relu'))
+        model.add(Dense(120, activation='relu'))
         model.add(Dense(self.action_space, activation='linear'))
-        model.compile(loss='mse', optimizer='adam')
+        model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
 
     def act(self, state):
         # Epsilon greedy
         if np.random.rand() <= self.epsilon:
-            return self.action_space.sample()
+            return random.randrange(self.action_space)
         else:
             action_values = self.model.predict(state)
             return np.argmax(action_values[0])
@@ -38,6 +46,7 @@ class dqn(Agent):
     def replay(self):
         if len(self.memory) < self.batch_size:
             return
+
         mini_batch = self.memory.sample()
         states = np.array([transition.state for transition in mini_batch])
         next_states = np.array([transition.next_state for transition in mini_batch])
@@ -45,16 +54,19 @@ class dqn(Agent):
         dones = np.array([transition.done for transition in mini_batch])
         actions = np.array([transition.action for transition in mini_batch])
 
-        targets = rewards + self.gamma * np.amax(self.model.predict(next_states), axis=1) * (1 - dones)
-        targets_full = self.model.predict_on_batch(states)
+        states = np.squeeze(states)
+        next_states = np.squeeze(next_states)
+
+        target_q_values = rewards + self.gamma * np.amax(self.model.predict_on_batch(next_states), axis=1) * (1 - dones)
+        q_values = self.model.predict_on_batch(states)
         indices = np.array([i for i in range(self.batch_size)])
-        targets_full[[indices], [actions]] = targets
+        q_values[[indices], [actions]] = target_q_values
 
-        self.model.fit(states, targets_full, epochs=1, verbose=0)
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
+        self.model.fit(states, q_values, epochs=1, verbose=0)
 
-    def train(self, env, episodes=1000):
+    def train(self, env: Env, episodes=1000):
+        env.seed(0)
+        np.random.seed(0)
         rewards = []
 
         for episode in range(episodes):
@@ -62,10 +74,12 @@ class dqn(Agent):
 
             episode_reward = 0
             state = env.reset()
+            state = np.reshape(state, (1,8))
 
             for step in range(1, self.max_steps + 1):
                 action = self.act(state)
                 new_state, reward, done, _ = env.step(action)
+                new_state = np.reshape(new_state, (1,8))
 
                 episode_reward += reward
 
@@ -77,9 +91,9 @@ class dqn(Agent):
                 self.replay()
 
                 if done:
-                    print(f"{episode}/{episodes}: {step} steps with reward {episode_reward}")
                     break
             rewards.append(episode_reward)
+            print(f"{episode}/{episodes}: {step} steps with reward {episode_reward}")
 
             running_mean= np.mean(rewards[-100:])
             if running_mean > 200:
@@ -87,10 +101,13 @@ class dqn(Agent):
                 break
             
             print(f"Average over last 100 episodes: {running_mean}")
-            if episode != 0 and episode % 50 == 0:
-                self.checkpoint()
+            if episode != 0 and episode % 50 == 0 and self.checkpoint:
+                self.save_model(episode)         
 
-    def checkpoint(self, episode: int):
+            self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+               
+
+    def save_model(self, episode: int):
         script_dir = os.path.dirname(__file__)
         backup_file = f"dqn{episode}.h5"
         print(f"Backing up model to {backup_file}")

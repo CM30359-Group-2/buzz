@@ -1,8 +1,6 @@
 import random
-from agents.memories.memory import Memory
-
 from agents.transition import Transition
-
+from agents.memory import Memory
 
 class ReplayBuffer(Memory):
     current_index = 0

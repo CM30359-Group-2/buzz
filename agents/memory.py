@@ -1,4 +1,4 @@
-from transition import Transition
+from agents.transition import Transition
 
 class Memory():
     def add(t: Transition):
