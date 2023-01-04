@@ -1,63 +1,101 @@
 import os
 
 import numpy as np
+from agents.agent import Agent
 from buffer import ReplayBuffer, Transition
-from q_network import QNetwork
-from utils import calculate_target_values, select_action_epsilon_greedy, copy_model, train_model
+from keras import Sequential
+from keras.layers import Dense
 
-def dqn(env, n_episodes=2000, max_t=3000, eps_start=1.0, eps_end=0.01, eps_decay=0.995):
-    script_dir = os.path.dirname(__file__)
-    replay_buffer = ReplayBuffer(1000000, 64, 42)
-    agent = QNetwork(env.observation_space.shape[0], 4)
-    target_agent = QNetwork(
-        env.observation_space.shape[0], 4, copy_model(agent.model))
-    epsilon = eps_start
-    step_count = 0
+class dqn(Agent):
+    def __init__(self, action_space, state_space):
+        self.epsilon = 1.0
+        self.epsilon_decay = 0.995
+        self.epsilon_min = 0.01
+        self.learning_rate = 0.001
+        self.model = self.build_model()
+        self.gamma = 0.99
+        self.batch_size = 64
+        self.max_steps = 2000
 
-    for episode in range(n_episodes):
-        print(f"Starting episode {episode} with epsilon {epsilon}")
+        Agent.__init__(self, action_space, state_space, ReplayBuffer(1000000, self.batch_size, 42))
+        
+    def build_model(self):
+        model = Sequential()
+        model.add(Dense(150, input_dim=self.state_space, activation='relu'))
+        model.add(Dense(200, activation='relu'))
+        model.add(Dense(self.action_space, activation='linear'))
+        model.compile(loss='mse', optimizer='adam')
+        return model
 
-        episode_reward = 0
-        state = env.reset()
+    def act(self, state):
+        # Epsilon greedy
+        if np.random.rand() <= self.epsilon:
+            return self.action_space.sample()
+        else:
+            action_values = self.model.predict(state)
+            return np.argmax(action_values[0])
 
-        for step in range(1, max_t + 1):
-            step_count += 1
-            q_values = agent.get_q_values(state)
-            action = select_action_epsilon_greedy(q_values, epsilon)
-            new_state, reward, done, _ = env.step(action)
+    def replay(self):
+        if len(self.memory) < self.batch_size:
+            return
+        mini_batch = self.memory.sample()
+        states = np.array([transition.state for transition in mini_batch])
+        next_states = np.array([transition.next_state for transition in mini_batch])
+        rewards = np.array([transition.reward for transition in mini_batch])
+        dones = np.array([transition.done for transition in mini_batch])
+        actions = np.array([transition.action for transition in mini_batch])
 
-            episode_reward += reward
+        targets = rewards + self.gamma * np.amax(self.model.predict(next_states), axis=1) * (1 - dones)
+        targets_full = self.model.predict_on_batch(states)
+        indices = np.array([i for i in range(self.batch_size)])
+        targets_full[[indices], [actions]] = targets
 
-            if step == max_t:
-                done = True
+        self.model.fit(states, targets_full, epochs=1, verbose=0)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
 
-            state_transition = Transition(
-                state, action, reward, new_state, done)
-            replay_buffer.add(state_transition)
+    def train(self, env, episodes=1000):
+        rewards = []
 
-            state = new_state
+        for episode in range(episodes):
+            print(f"Starting episode {episode} with epsilon {self.epsilon}")
 
-            if step_count % 1000 == 0:
-                target_agent = QNetwork(
-                    env.observation_space.shape[0], 4, copy_model(agent.model))
+            episode_reward = 0
+            state = env.reset()
 
-            if len(replay_buffer) >= 256:
-                batch = replay_buffer.sample()
-                targets = calculate_target_values(
-                    agent, target_agent, batch, 0.99)
-                states = np.array(
-                    [state_transition.state for state_transition in batch])
-                train_model(agent.model, states, targets)
+            for step in range(1, self.max_steps + 1):
+                action = self.act(state)
+                new_state, reward, done, _ = env.step(action)
 
-            if done:
+                episode_reward += reward
+
+                state_transition = Transition(
+                    state, action, reward, new_state, done)
+                self.remember(state_transition)
+
+                state = new_state
+                self.replay()
+
+                if done:
+                    print(f"{episode}/{episodes}: {step} steps with reward {episode_reward}")
+                    break
+            rewards.append(episode_reward)
+
+            running_mean= np.mean(rewards[-100:])
+            if running_mean > 200:
+                print(f"Solved after {episode} episodes with reward {running_mean}")
                 break
+            
+            print(f"Average over last 100 episodes: {running_mean}")
+            if episode != 0 and episode % 50 == 0:
+                self.checkpoint()
 
-        print(
-            f"Episode {episode} finished after {step} steps with reward {episode_reward}")
-        if episode != 0 and episode % 50 == 0:
-            backup_file = f"dqn{episode}.h5"
-            print(f"Backing up model to {backup_file}")
-            agent.model.save(os.path.join(script_dir, backup_file))
+    def checkpoint(self, episode: int):
+        script_dir = os.path.dirname(__file__)
+        backup_file = f"dqn{episode}.h5"
+        print(f"Backing up model to {backup_file}")
+        self.model.save(os.path.join(script_dir, backup_file))
 
-        epsilon *= eps_decay
-        epsilon = max(epsilon, eps_end)
+
+    def load(self):
+        pass
