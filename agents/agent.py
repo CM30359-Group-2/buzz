@@ -11,7 +11,7 @@ class Agent:
     def act(self, state):
         pass
 
-    def train(self, env: Env):
+    def train(self, env: Env) -> "list[float]":
         pass
 
     def remember(self, transition: Transition):
