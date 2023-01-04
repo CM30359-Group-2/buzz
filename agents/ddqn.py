@@ -1,16 +1,13 @@
 import os
 import random
-import uuid
 from gym import Env
 
 import numpy as np
 from buffer import ReplayBuffer, Transition
-from q_network import QNetwork
 from agents.agent import Agent
 from keras import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
-from utils import calculate_target_values, select_action_epsilon_greedy, copy_model, train_model
 
 class DDQN(Agent):
     batch_size = 64
@@ -22,8 +19,8 @@ class DDQN(Agent):
         self.checkpoint = checkpoint
         self.epsilon = 1.0
         self.epsilon_decay = 0.995
-        self.epsilon_min = 0.01
-        self.learning_date = 0.001
+        self.epsilon_min = 0.1
+        self.learning_rate = 0.0001
         self.gamma = 0.99
         self.max_steps = 2000
         self.policy = self.build_model()
@@ -36,7 +33,7 @@ class DDQN(Agent):
         model.add(Dense(128, input_dim=self.state_space, activation='relu'))
         model.add(Dense(128, activation='relu'))
         model.add(Dense(self.action_space, activation='linear'))
-        model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
+        model.compile(loss='mse', optimizer=Adam(learning_rate=self.learning_rate))
         return model
 
     def update_target(self):
@@ -79,7 +76,7 @@ class DDQN(Agent):
         
 
     def train(self, env: Env, episodes=1000):
-        env.seed(self.seed)
+        env.reset(seed=self.seed)
         np.random.seed(self.seed)
         rewards = []
 
@@ -121,6 +118,7 @@ class DDQN(Agent):
                 self.save_model(episode)         
 
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+        return rewards
 
     def save_model(self, episode: int):
         script_dir = os.path.dirname(__file__)
