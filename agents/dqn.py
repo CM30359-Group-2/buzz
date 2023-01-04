@@ -65,8 +65,8 @@ class DQN(Agent):
         self.model.fit(states, q_values, epochs=1, verbose=0)
 
     def train(self, env: Env, episodes=1000):
-        env.seed(0)
-        np.random.seed(0)
+        env.reset(seed=self.seed)
+        np.random.seed(self.seed)
         rewards = []
 
         for episode in range(episodes):
@@ -105,6 +105,7 @@ class DQN(Agent):
                 self.save_model(episode)         
 
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+        return rewards
                
 
     def save_model(self, episode: int):
