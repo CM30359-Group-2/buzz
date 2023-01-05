@@ -5,12 +5,12 @@ from gym import Env
 
 import numpy as np
 from agents.agent import Agent
-from buffer import ReplayBuffer
 from keras import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
 
 from agents.transition import Transition
+from memory.prioritised_replay_buffer import PrioritisedReplayBuffer
 
 class DQFD(Agent):
     batch_size = 64
@@ -18,7 +18,7 @@ class DQFD(Agent):
     seed = 42
 
     def __init__(self, action_space, state_space, pre_training_epochs=40000, checkpoint=False):
-        Agent.__init__(self, action_space, state_space, ReplayBuffer(self.memory_size, self.batch_size, self.seed))
+        Agent.__init__(self, action_space, state_space, PrioritisedReplayBuffer(self.memory_size, self.batch_size, self.seed))
         self.pre_training_epochs = pre_training_epochs
         self.checkpoint = checkpoint
         self.epsilon = 1.0
@@ -49,7 +49,7 @@ class DQFD(Agent):
         if len(self.memory) < self.batch_size:
             return
 
-        mini_batch = self.memory.sample()
+        mini_batch, weights, indices = self.memory.sample()
         states = np.array([transition.state for transition in mini_batch])
         next_states = np.array([transition.next_state for transition in mini_batch])
         rewards = np.array([transition.reward for transition in mini_batch])
@@ -65,7 +65,10 @@ class DQFD(Agent):
         indices = np.array([i for i in range(self.batch_size)])
         q_values[[indices], [actions]] = target_q_values
 
-        self.model.fit(states, q_values, epochs=1, verbose=0)
+        td_errors = np.abs(target_q_values - self.model.predict_on_batch(states)[actions])
+        self.memory.update_priorities(indices, td_errors)
+
+        self.model.fit(states, q_values, epochs=1, verbose=0, sample_weight=weights)
 
     def pre_train(self):
         script_dir = os.path.dirname(__file__)
