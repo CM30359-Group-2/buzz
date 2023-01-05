@@ -4,7 +4,7 @@ from gym import Env
 
 import numpy as np
 from agents.agent import Agent
-from buffer import ReplayBuffer
+from memory.buffer import ReplayBuffer
 from keras import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
@@ -47,7 +47,7 @@ class DQN(Agent):
         if len(self.memory) < self.batch_size:
             return
 
-        mini_batch = self.memory.sample()
+        mini_batch = self.memory.sample_by_idxs()
         states = np.array([transition.state for transition in mini_batch])
         next_states = np.array([transition.next_state for transition in mini_batch])
         rewards = np.array([transition.reward for transition in mini_batch])

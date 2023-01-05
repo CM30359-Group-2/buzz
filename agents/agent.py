@@ -1,5 +1,5 @@
 from gym import Env
-from agents.memory import Memory
+from memory.memory import Memory
 from agents.transition import Transition
 
 class Agent:

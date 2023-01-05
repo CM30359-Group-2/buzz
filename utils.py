@@ -2,7 +2,7 @@ import random
 import shutil
 import uuid
 import numpy as np
-from buffer import Transition
+from memory.buffer import Transition
 from keras import models
 
 from q_network import masked_huber_loss
