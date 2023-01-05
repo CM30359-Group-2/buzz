@@ -25,7 +25,7 @@ class PartitionedRingBuffer(object):
     def append(self, t: Transition):
         if self.length < self.max_size:
             self.length += 1
-        self.data[(self.permanent_index + self.length )] = t
+        self.data[(self.permanent_index + self.next_index )] = t
         self.next_index = (self.next_index + 1) % (self.max_size - self.permanent_index)
 
     def load(self, load_data: "list[Transition]"):
