@@ -1,4 +1,5 @@
 import operator
+from typing import Union
 
 
 class SegmentTree(object):
@@ -60,7 +61,7 @@ class SumSegmentTree(SegmentTree):
     def __init__(self, capacity: int):
         super(SumSegmentTree, self).__init__(capacity=capacity, operation=operator.add, neutral_element=0.0)
 
-    def sum(self, start=0, end: int | None =None) -> float:
+    def sum(self, start=0, end: Union[int,None]=None) -> float:
         return super(SumSegmentTree, self).reduce(start, end)
     
     def find_prefixsum_idx(self, prefixsum):

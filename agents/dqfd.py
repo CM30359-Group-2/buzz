@@ -10,7 +10,7 @@ from keras.layers import Dense
 from keras.optimizers import Adam
 
 from agents.transition import Transition
-from memory.prioritised_replay_buffer import PrioritisedReplayBuffer
+from memory.partitioned_memory import PartitionedMemory
 
 class DQFD(Agent):
     batch_size = 64
@@ -18,7 +18,7 @@ class DQFD(Agent):
     seed = 42
 
     def __init__(self, action_space, state_space, pre_training_epochs=40000, checkpoint=False):
-        Agent.__init__(self, action_space, state_space, PrioritisedReplayBuffer(self.memory_size, self.batch_size, self.seed))
+        Agent.__init__(self, action_space, state_space, PartitionedMemory(self.memory_size, self.batch_size, self.seed))
         self.pre_training_epochs = pre_training_epochs
         self.checkpoint = checkpoint
         self.epsilon = 1.0
@@ -56,7 +56,6 @@ class DQFD(Agent):
         dones = np.array([transition.done for transition in mini_batch])
         actions = np.array([transition.action for transition in mini_batch])
 
-        # print(states)
         states = np.squeeze(states)
         next_states = np.squeeze(next_states)
 
@@ -65,7 +64,7 @@ class DQFD(Agent):
         indices = np.array([i for i in range(self.batch_size)])
         q_values[[indices], [actions]] = target_q_values
 
-        td_errors = np.abs(target_q_values - self.model.predict_on_batch(states)[actions])
+        td_errors = np.abs(target_q_values - self.model.predict_on_batch(states).take(actions)) + 0.001
         self.memory.update_priorities(indices, td_errors)
 
         self.model.fit(states, q_values, epochs=1, verbose=0, sample_weight=weights)
@@ -73,7 +72,7 @@ class DQFD(Agent):
     def pre_train(self):
         script_dir = os.path.dirname(__file__)
         print("Loading expert data")
-        total_transitions = 0
+        transitions = list()
         
         demos_path = os.path.join(script_dir, '../demos')
         for file in os.listdir(demos_path):
@@ -82,18 +81,16 @@ class DQFD(Agent):
 
                 demo = json.load(demo_file)
                 for transition in demo["data"]:
-                    total_transitions += 1
                     states = np.reshape(np.array(transition["obs_t"], dtype=np.float32), (1,8))
                     new_states = np.reshape(np.array(transition["obs_tp1"], dtype=np.float32), (1,8))
 
                     parsed_transition = Transition(
                         states, transition["action"], transition["rew"], new_states, transition["terminated"])
-                    if parsed_transition.state.shape != (1,8):
-                        print(parsed_transition.state.shape)
-                    self.remember(parsed_transition)
-            break
-        
-        print(f"Loaded {total_transitions} transitions")
+                    
+                    transitions.append(parsed_transition)
+            
+        self.memory.load(transitions)
+        print(f"Loaded {len(transitions)} transitions")
 
         for _ in range(self.pre_training_epochs):
             self.replay()

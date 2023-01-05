@@ -28,7 +28,7 @@ class PartitionedRingBuffer(object):
         self.data[(self.permanent_index + self.length )] = t
         self.next_index = (self.next_index + 1) % (self.max_size - self.permanent_index)
 
-    def load(self, load_data: list[Transition]):
+    def load(self, load_data: "list[Transition]"):
         assert len(load_data) < self.max_size, "Cannot load data larger than the buffer"
         for idx, data in enumerate(load_data):
             self.length += 1
