@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import os
 import gym
 import numpy as np
@@ -34,7 +35,10 @@ if __name__ == '__main__':
         print("That is not a permitted algorithm")
         exit(1)
 
-    with open(os.path.join(script_dir, f'{algorithm}.txt'), 'w') as file:
+    #  Get unix timestamp with datetime
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    
+    with open(os.path.join(script_dir, f'{algorithm}{timestamp}.txt'), 'w') as file:
         rewards = np.array(rewards)
         np.savetxt(file, rewards)
     print('Done')
