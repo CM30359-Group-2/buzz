@@ -1,6 +1,6 @@
 import random
 from agents.transition import Transition
-from agents.memory import Memory
+from memory.memory import Memory
 
 class ReplayBuffer(Memory):
     current_index = 0
@@ -18,7 +18,7 @@ class ReplayBuffer(Memory):
             self.memory[self.current_index] = t
             self.__increment_current_index()
 
-    def sample(self) -> "list[Transition]":
+    def sample_by_idxs(self) -> "list[Transition]":
         return random.sample(self.memory, self.batch_size)
 
     def __len__(self):

@@ -1,8 +1,8 @@
 from agents.transition import Transition
 
-class Memory():
+class Memory(object):
     def add(t: Transition):
-        pass
+        raise NotImplementedError()
 
     def sample()->"list[Transition]":
-        pass
+        raise NotImplementedError()
