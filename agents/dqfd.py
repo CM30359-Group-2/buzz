@@ -88,6 +88,8 @@ class DQFD(Agent):
                         states, transition["action"], transition["rew"], new_states, transition["terminated"])
                     
                     transitions.append(parsed_transition)
+                
+                break
             
         self.memory.load(transitions)
         print(f"Loaded {len(transitions)} transitions")

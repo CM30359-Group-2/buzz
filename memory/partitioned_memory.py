@@ -8,8 +8,9 @@ from util.segment_tree import MinSegmentTree, SumSegmentTree
 
 
 class PartitionedMemory(Memory):
-    def __init__(self, limit, batch_size, alpha=.4, beta=.6, **kwargs):
+    def __init__(self, limit, batch_size, seed, alpha=.4, beta=.6, **kwargs):
         super(PartitionedMemory, self).__init__(**kwargs)
+        random.seed(seed)
 
         self.batch_size = batch_size
         self.limit = limit
