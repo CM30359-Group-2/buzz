@@ -35,7 +35,7 @@ if __name__ == '__main__':
     elif algorithm == 'qlearning':
         print("Running Q-learning")
         agent = QLearning(action_space=env.action_space.n, state_space=env.observation_space.shape[0])
-        rewards = agent.train(env, 1000)
+        rewards = agent.train(env, 100000)
     else:
         print("That is not a permitted algorithm")
         exit(1)

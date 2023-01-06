@@ -12,7 +12,6 @@ class QTable(Memory):
     def add(self, transition: Transition):
         self.q_table.update({(transition.state, transition.action): 0.0})
     
-    
     def recall(self, state, action=None):
         if action is None:
             # Get all the values for the given state

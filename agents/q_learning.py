@@ -32,7 +32,7 @@ class QLearning(Agent):
         self.alpha = 0.1
         self.gamma = 0.99
         self.epsilon = 1.0
-        self.epsilon_decay = 0.995
+        self.epsilon_decay = 0.9995
         self.epsilon_min = 0.02
         self.checkpoint = checkpoint
         self.max_steps = 2000
@@ -135,7 +135,7 @@ class QLearning(Agent):
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)        
         return rewards
 
-    def play(self, env, episodes=1, step_callback: Union[Callable[[Any, float, bool, Any], None], None]=None):
+    def play(self, env, episodes=1, step_callback: Union[Callable[[Any, Any, int, float, bool, Any], None], None]=None):
         # Load the Q-table from the checkpoint
         script_dir = os.path.dirname(__file__)
         with open(os.path.join(script_dir, "dict"), "rb") as f:
@@ -149,20 +149,21 @@ class QLearning(Agent):
             print(f"Starting episode {episode}")
 
             episode_reward = 0
-            state = env.reset()
-            state = discretize_state(state)
+            # Need to separate the generation of new state information from the discretisation step
+            raw_state = env.reset()
+            state = discretize_state(raw_state)
 
             for step in range(self.max_steps):
-                env.render()
                 action = self.choose_action(state, greedy=True)
-                new_state, reward, done, info = env.step(action)
+                raw_new_state, reward, done, info = env.step(action)
 
                 episode_reward += reward
                 if step_callback != None:
-                    step_callback(new_state, reward, done, info)
+                    step_callback(raw_state, raw_new_state, action, reward, done, info)
 
-                new_state = discretize_state(new_state)
-                state = new_state
+                # Separation of the discretisation step
+                raw_state = raw_new_state
+                state = discretize_state(raw_new_state)
                 if done:
                     break
             
