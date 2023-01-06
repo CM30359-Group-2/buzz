@@ -1,17 +1,16 @@
 import itertools
 import os
 import random
-from typing import Union
+from typing import Any, Callable, Union
 import numpy as np
 from agents.agent import Agent
 from agents.transition import Transition
-import gym
 import pickle
 from memory.q_table import QTable
 
 
-def clamp_value(value, min, max, step):
-    return min(max, max(min, int(value / step)))
+def clamp_value(value, min_value, max_value, step):
+    return min(max_value, max(min_value, int(value / step)))
 
 
 def discretize_state(s):
@@ -70,7 +69,7 @@ class QLearning(Agent):
         # Add all combinations to the Q-table
         for (state, action) in keys:
             # Fill the remainder of the transition with dummy values - we don't need them for Q-learning
-            self.memory.add(Transition(state, action, 0, (), False), 0.0)
+            self.memory.add(Transition(state, action, 0, (), False))
 
     def choose_action(self, state, greedy=False):
         if np.random.random() <= self.epsilon and not greedy:
@@ -133,10 +132,10 @@ class QLearning(Agent):
                 with open(os.path.join(script_dir, "dict"), "wb") as f:
                     pickle.dump(self.memory, f)
 
-        self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)        
+            self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)        
         return rewards
 
-    def play(self, env, episodes=1, step_callback: Union[function, None]=None):
+    def play(self, env, episodes=1, step_callback: Union[Callable[[Any, float, bool, Any], None], None]=None):
         # Load the Q-table from the checkpoint
         script_dir = os.path.dirname(__file__)
         with open(os.path.join(script_dir, "dict"), "rb") as f:
