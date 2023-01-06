@@ -67,7 +67,7 @@ class DQFD(Agent):
         td_errors = np.abs(target_q_values - self.model.predict_on_batch(states).take(actions)) + 0.001
         self.memory.update_priorities(indices, td_errors)
 
-        self.model.fit(states, q_values, epochs=1, verbose=0, sample_weight=weights)
+        self.model.fit(states, q_values, epochs=1, verbose=1, sample_weight=weights)
 
     def pre_train(self):
         script_dir = os.path.dirname(__file__)
@@ -89,7 +89,6 @@ class DQFD(Agent):
                     
                     transitions.append(parsed_transition)
                 
-                break
             
         self.memory.load(transitions)
         print(f"Loaded {len(transitions)} transitions")
