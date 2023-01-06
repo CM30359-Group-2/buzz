@@ -35,7 +35,7 @@ class DQN(Agent):
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
 
-    def act(self, state):
+    def choose_action(self, state):
         # Epsilon greedy
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_space)
@@ -77,7 +77,7 @@ class DQN(Agent):
             state = np.reshape(state, (1,8))
 
             for step in range(1, self.max_steps + 1):
-                action = self.act(state)
+                action = self.choose_action(state)
                 new_state, reward, done, _ = env.step(action)
                 new_state = np.reshape(new_state, (1,8))
 

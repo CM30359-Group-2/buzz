@@ -6,6 +6,7 @@ import numpy as np
 from agents.dqn import DQN
 from agents.ddqn import DDQN
 from agents.dqfd import DQFD
+from agents.q_learning import QLearning
 
 if __name__ == '__main__':
     script_dir = os.path.dirname(__file__)
@@ -30,6 +31,10 @@ if __name__ == '__main__':
     elif algorithm == 'dqfd':
         print("Running Deep Q-learning from Demonstrations")
         agent = DQFD(action_space=env.action_space.n, state_space=env.observation_space.shape[0])
+        rewards = agent.train(env, 1000)
+    elif algorithm == 'qlearning':
+        print("Running Q-learning")
+        agent = QLearning(action_space=env.action_space.n, state_space=env.observation_space.shape[0])
         rewards = agent.train(env, 1000)
     else:
         print("That is not a permitted algorithm")
