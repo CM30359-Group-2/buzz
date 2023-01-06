@@ -8,7 +8,7 @@ class Agent:
         self.state_space = state_space
         self.memory = memory
 
-    def act(self, state):
+    def choose_action(self, state):
         pass
 
     def train(self, env: Env) -> "list[float]":
