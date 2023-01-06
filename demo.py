@@ -1,46 +1,55 @@
-# https://github.com/openai/mlsh/blob/master/gym/examples/agents/keyboard_agent.py
-
-import gym
+import os
+import gymnasium as gym
+from keras.models import load_model
+from keras.losses import MeanSquaredError
 import numpy as np
-from gym.utils.play import play
-import json
-import time
 
-transitions = []
-filename = "demos/epNo" + str(time.time()) + ".json"
+script_dir = os.path.dirname(__file__)
+env = gym.make('LunarLander-v2', render_mode='human')
+filename = os.path.join(script_dir, 'checkpoints/dqn850.h5')
+trained_model = load_model(filename, custom_objects={
+    'masked_huber_loss': MeanSquaredError()})
 
-
-def writeFile(jsonFile,):
-    dumped_transitions = json.dumps({
-        "strategy": "example",  # Fill in whatever the chosen strategy is, if none, put 'N/A'
-        "user": "Q",  # Fill in the user who is controlling this demonstration episode
-        "data": transitions
-    }, indent=4)
-    jsonFile.write(dumped_transitions)
-
-    jsonFile.close()
+evaluation_max_episodes = 10
+evaluation_max_steps = 3000
 
 
-def game_callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
-    global filename
-    global transitions
+def get_q_values(model, state):
+    input = state[np.newaxis, ...]
+    return model.predict(input)[0]
 
-    # Write to file
 
-    stateData = {
-        "obs_t": obs_t.tolist(),
-        "obs_tp1": obs_tp1.tolist(),
-        "action": action.tolist(),
-        "rew": rew,
-        "terminated": terminated,
-        "truncated": truncated,
-        "info": info
-    }
+def select_best_action(q_values):
+    return np.argmax(q_values)
 
-    transitions.append(stateData)
 
-    if terminated and len(transitions) > 0:
-        jsonFile = open(filename, "w")
-        writeFile(jsonFile)
-        transitions = []
-        filename = "demos/epNo" + str(time.time()) + ".json"
+rewards = []
+for episode in range(1, evaluation_max_episodes + 1):
+    state = env.reset()[0]
+    print(state)
+
+    episode_reward = 0
+
+    step = 1
+
+    for step in range(1, evaluation_max_steps + 1):
+        env.render()
+        q_values = get_q_values(trained_model, state)
+        action = select_best_action(q_values)
+        new_state, reward, done, info, _ = env.step(action)
+
+        episode_reward += reward
+
+        if step == evaluation_max_steps:
+            done = True
+
+        state = new_state
+
+        if done:
+            break
+
+        print(
+            f"Step {step} finished with reward {episode_reward}")
+        rewards.append(episode_reward)
+
+print(f"Average reward: {np.average(rewards)}")
