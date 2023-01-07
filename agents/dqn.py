@@ -77,11 +77,11 @@ class DQN(Agent):
             state = np.reshape(state, (1,8))
 
             for step in range(1, self.max_steps + 1):
-                if render:
-                    env.render('rgb_array')
-
                 action = self.choose_action(state)
                 new_state, reward, done, _ = env.step(action)
+                if render:
+                    env.render('human')
+
                 new_state = np.reshape(new_state, (1,8))
 
                 episode_reward += reward
@@ -129,11 +129,12 @@ class DQN(Agent):
             state = np.reshape(state, (1, 8))
 
             for step in range(1, self.max_steps + 1):
-                if render:
-                    env.render('rgb_array')
 
                 action = np.argmax(self.model.predict(state)[0])
                 new_state, reward, done, _ = env.step(action)
+                if render:
+                    env.render('human')
+                
                 new_state = np.reshape(new_state, (1,8))
 
                 episode_reward += reward

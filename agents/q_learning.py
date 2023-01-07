@@ -91,14 +91,14 @@ class QLearning(Agent):
             state = discretize_state(state)
 
             for step in range(self.max_steps):
-                if render:
-                    env.render('rgb_array')
-
                 #  choose action A from state S using epsilon greedy policy
                 action = self.choose_action(state)
 
                 # take the action in the environment and observe the new state
                 new_state, reward, done, _ = env.step(action)
+                if render:
+                    env.render('human')
+
                 new_state = discretize_state(new_state)
 
                 episode_reward += reward
@@ -147,11 +147,10 @@ class QLearning(Agent):
             state = discretize_state(raw_state)
 
             for step in range(self.max_steps):
-                if render:
-                    env.render('rgb_array')
-
                 action = self.choose_action(state, greedy=True)
                 raw_new_state, reward, done, info = env.step(action)
+                if render:
+                    env.render('human')
 
                 episode_reward += reward
                 if step_callback != None:
