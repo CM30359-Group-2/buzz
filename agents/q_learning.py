@@ -128,17 +128,22 @@ class QLearning(Agent):
 
             print(f"Average over last 100 episodes: {running_mean}")
             if episode != 0 and episode % 100 == 0 and self.checkpoint:
-                script_dir = os.path.dirname(__file__)
-                with open(os.path.join(script_dir, "dict"), "wb") as f:
-                    pickle.dump(self.memory, f)
+                self.save_model(episode)
 
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)        
         return rewards
 
-    def play(self, env, episodes=1, step_callback: Union[Callable[[Any, Any, int, float, bool, Any], None], None]=None):
+    def save_model(self, episode: int):
+        script_dir = os.path.dirname(__file__)
+        backup_file = f"q_{episode}.pickle"
+        print(f"Backing up Q-table to {backup_file}")
+        with open(os.path.join(script_dir, "dict"), "wb") as f:
+                    pickle.dump(self.memory, f)
+
+    def play(self, env, checkpoint, episodes=1, render=False, step_callback: Union[Callable[[Any, Any, int, float, bool, Any], None], None]=None):
         # Load the Q-table from the checkpoint
         script_dir = os.path.dirname(__file__)
-        with open(os.path.join(script_dir, "dict"), "rb") as f:
+        with open(os.path.join(script_dir, checkpoint), "rb") as f:
             self.memory = pickle.load(f)
 
         env.reset(seed=self.seed)
@@ -154,6 +159,9 @@ class QLearning(Agent):
             state = discretize_state(raw_state)
 
             for step in range(self.max_steps):
+                if render:
+                    env.render('rgb_array')
+
                 action = self.choose_action(state, greedy=True)
                 raw_new_state, reward, done, info = env.step(action)
 

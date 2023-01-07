@@ -1,5 +1,4 @@
 import random
-
 import numpy as np
 from agents.transition import Transition
 from memory.memory import Memory
@@ -7,9 +6,9 @@ from memory.partitioned_ring_buffer import PartitionedRingBuffer
 from util.segment_tree import MinSegmentTree, SumSegmentTree
 
 
-class PartitionedMemory(Memory):
+class PartitionedPrioritisedReplayBuffer(Memory):
     def __init__(self, limit, batch_size, seed, alpha=.4, beta=.6, **kwargs):
-        super(PartitionedMemory, self).__init__(**kwargs)
+        super(PartitionedPrioritisedReplayBuffer, self).__init__(**kwargs)
         random.seed(seed)
 
         self.batch_size = batch_size
@@ -56,7 +55,7 @@ class PartitionedMemory(Memory):
         
         return indices
 
-    def sample(self) -> "tuple[list[Transition], list[float]]":
+    def sample(self) -> "tuple[list[Transition], list[float], list[int]]":
         importance_weights = list()
 
         # The lowest-priority experience will have maximum importance sampling weight

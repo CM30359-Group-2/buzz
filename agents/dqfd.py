@@ -8,32 +8,33 @@ from agents.agent import Agent
 from keras import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
+from keras.regularizers import l2
+from keras.models import load_model
 
 from agents.transition import Transition
-from memory.partitioned_memory import PartitionedMemory
+from memory.pp_replay_buffer import PartitionedPrioritisedReplayBuffer
 
 class DQFD(Agent):
     batch_size = 64
     memory_size = 1000000
     seed = 42
 
-    def __init__(self, action_space, state_space, pre_training_epochs=40000, checkpoint=False):
-        Agent.__init__(self, action_space, state_space, PartitionedMemory(self.memory_size, self.batch_size, self.seed))
+    def __init__(self, action_space, state_space, pre_training_epochs=15000, checkpoint=False):
+        Agent.__init__(self, action_space, state_space, PartitionedPrioritisedReplayBuffer(self.memory_size, self.batch_size, self.seed))
         self.pre_training_epochs = pre_training_epochs
         self.checkpoint = checkpoint
-        self.epsilon = 1.0
-        self.epsilon_decay = 0.995
-        self.epsilon_min = 0.01
-        self.learning_rate = 0.001
+        self.epsilon = 0.01
+        self.learning_rate = 0.00025
         self.gamma = 0.99
         self.max_steps = 2000
+        self.regularisation_factor = 0.0001
         self.model = self.build_model()
         
     def build_model(self):
         model = Sequential()
-        model.add(Dense(150, input_dim=self.state_space, activation='relu'))
-        model.add(Dense(120, activation='relu'))
-        model.add(Dense(self.action_space, activation='linear'))
+        model.add(Dense(150, input_dim=self.state_space, activation='relu', kernel_regularizer=l2(self.regularisation_factor)))
+        model.add(Dense(120, activation='relu', kernel_regularizer=l2(self.regularisation_factor)))
+        model.add(Dense(self.action_space, activation='linear', kernel_regularizer=l2(self.regularisation_factor)))
         model.compile(loss='mse', optimizer=Adam(learning_rate=self.learning_rate))
         return model
 
@@ -85,7 +86,7 @@ class DQFD(Agent):
                     new_states = np.reshape(np.array(transition["obs_tp1"], dtype=np.float32), (1,8))
 
                     parsed_transition = Transition(
-                        states, transition["action"], transition["rew"], new_states, transition["terminated"])
+                        states, transition["action"], transition["rew"], new_states, transition["done"])
                     
                     transitions.append(parsed_transition)
                 
@@ -145,16 +146,53 @@ class DQFD(Agent):
             if episode != 0 and episode % 50 == 0 and self.checkpoint:
                 self.save_model(episode)         
 
-            self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
         return rewards
                
 
     def save_model(self, episode: int):
         script_dir = os.path.dirname(__file__)
-        backup_file = f"dqn{episode}.h5"
+        backup_file = f"dqfd_{episode}.h5"
         print(f"Backing up model to {backup_file}")
         self.model.save(os.path.join(script_dir, backup_file))
 
 
-    def load(self):
-        pass
+    def play(self, env: Env, checkpoint, episodes=1, render=False):
+        script_dir = os.path.dirname(__file__)
+        try:
+            checkpoint_path = os.path.join(script_dir, checkpoint)
+            self.policy = load_model(checkpoint_path)
+        except ImportError:
+            print(f"Loading from {checkpoint} is not available")
+            return
+        except IOError:
+            print(f"Checkpoint file {checkpoint} is invalid")
+            return
+        
+        rewards = []
+
+        for episode in range(1, episodes + 1):
+            episode_reward = 0
+
+            state = env.reset()
+            state = np.reshape(state, (1, 8))
+
+            for step in range(1, self.max_steps + 1):
+                if render:
+                    env.render('rgb_array')
+
+                action = np.argmax(self.policy.predict(state)[0])
+                new_state, reward, done, _ = env.step(action)
+                new_state = np.reshape(new_state, (1,8))
+
+                episode_reward += reward
+
+                state = new_state
+
+                if done:
+                    break
+        
+            rewards.append(episode_reward)
+            print(f"{episode}/{episodes}: {step} steps with reward {episode_reward}")
+    
+        return rewards
+
