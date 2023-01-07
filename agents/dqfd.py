@@ -19,10 +19,9 @@ class DQFD(Agent):
     memory_size = 1000000
     seed = 42
 
-    def __init__(self, action_space, state_space, pre_training_epochs=15000, checkpoint=False):
+    def __init__(self, action_space, state_space, pre_training_epochs=15000):
         Agent.__init__(self, action_space, state_space, PartitionedPrioritisedReplayBuffer(self.memory_size, self.batch_size, self.seed))
         self.pre_training_epochs = pre_training_epochs
-        self.checkpoint = checkpoint
         self.epsilon = 0.01
         self.learning_rate = 0.00025
         self.gamma = 0.99
@@ -70,12 +69,10 @@ class DQFD(Agent):
 
         self.model.fit(states, q_values, epochs=1, verbose=1, sample_weight=weights)
 
-    def pre_train(self):
-        script_dir = os.path.dirname(__file__)
+    def pre_train(self, demos_path: str):
         print("Loading expert data")
         transitions = list()
         
-        demos_path = os.path.join(script_dir, '../demos')
         for file in os.listdir(demos_path):
             with open(os.path.join(demos_path, file)) as demo_file:
                 print(file)
@@ -100,14 +97,14 @@ class DQFD(Agent):
         print("Finished pre-training")
 
 
-    def train(self, env: Env, episodes=1000):
+    def train(self, env: Env, episodes: int, checkpoint: bool, render: bool, demos_path: str) -> "list[float]":
         env.reset(seed=self.seed)
         np.random.seed(self.seed)
         rewards = []
 
         if self.pre_training_epochs > 0:
             print("Pre-training")
-            self.pre_train()
+            self.pre_train(demos_path)
         else:
             print("Skipping pre-training")
 
@@ -119,6 +116,9 @@ class DQFD(Agent):
             state = np.reshape(state, (1,8))
 
             for step in range(1, self.max_steps + 1):
+                if render:
+                    env.render('rgb_array')
+
                 action = self.choose_action(state)
                 new_state, reward, done, _ = env.step(action)
                 new_state = np.reshape(new_state, (1,8))
@@ -143,29 +143,19 @@ class DQFD(Agent):
                 break
             
             print(f"Average over last 100 episodes: {running_mean}")
-            if episode != 0 and episode % 50 == 0 and self.checkpoint:
-                self.save_model(episode)         
+            if episode != 0 and episode % 50 == 0 and checkpoint:
+                self.save_checkpoint(episode)         
 
         return rewards
-               
 
-    def save_model(self, episode: int):
-        script_dir = os.path.dirname(__file__)
-        backup_file = f"dqfd_{episode}.h5"
-        print(f"Backing up model to {backup_file}")
-        self.model.save(os.path.join(script_dir, backup_file))
-
-
-    def play(self, env: Env, checkpoint, episodes=1, render=False):
-        script_dir = os.path.dirname(__file__)
+    def play(self, env: Env, episodes: int, checkpoint_path: str, render=False):
         try:
-            checkpoint_path = os.path.join(script_dir, checkpoint)
-            self.policy = load_model(checkpoint_path)
+            self.load_checkpoint(checkpoint_path)
         except ImportError:
-            print(f"Loading from {checkpoint} is not available")
+            print(f"Loading from {checkpoint_path} is not available")
             return
         except IOError:
-            print(f"Checkpoint file {checkpoint} is invalid")
+            print(f"Checkpoint file {checkpoint_path} is invalid")
             return
         
         rewards = []
@@ -180,7 +170,7 @@ class DQFD(Agent):
                 if render:
                     env.render('rgb_array')
 
-                action = np.argmax(self.policy.predict(state)[0])
+                action = np.argmax(self.model.predict(state)[0])
                 new_state, reward, done, _ = env.step(action)
                 new_state = np.reshape(new_state, (1,8))
 
@@ -196,3 +186,14 @@ class DQFD(Agent):
     
         return rewards
 
+    def save_checkpoint(self, episode: int):
+        script_dir = os.path.dirname(__file__)
+        backup_file = f"dqfd_{episode}.h5"
+        print(f"Backing up model to {backup_file}")
+        self.model.save(os.path.join(script_dir, backup_file))
+    
+    def load_checkpoint(self, checkpoint_path: str):
+        try:
+            self.model = load_model(checkpoint_path)
+        except Exception as _:
+            raise

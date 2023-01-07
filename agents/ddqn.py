@@ -15,9 +15,8 @@ class DDQN(Agent):
     memory_size = 1000000
     seed = 0
 
-    def __init__(self, action_space, state_space, checkpoint=False):
+    def __init__(self, action_space, state_space):
         Agent.__init__(self, action_space, state_space, ReplayBuffer(self.memory_size, self.batch_size, self.seed))
-        self.checkpoint = checkpoint
         self.epsilon = 1.0
         self.epsilon_decay = 0.995
         self.epsilon_min = 0.1
@@ -76,7 +75,7 @@ class DDQN(Agent):
         self.policy.fit(states, q_values, epochs=1, verbose=0)
         
 
-    def train(self, env: Env, episodes=1000):
+    def train(self, env: Env, episodes: int, checkpoint: bool, render: bool) -> "list[float]":
         env.reset(seed=self.seed)
         np.random.seed(self.seed)
         rewards = []
@@ -89,6 +88,9 @@ class DDQN(Agent):
             state = np.reshape(state, (1, 8))
 
             for step in range(1, self.max_steps + 1):
+                if render:
+                    env.render('rgb_array')
+                
                 action = self.choose_action(state)
                 new_state, reward, done, _ = env.step(action)
                 new_state = np.reshape(new_state, (1, 8))
@@ -115,27 +117,20 @@ class DDQN(Agent):
                 break
             
             print(f"Average over last 100 episodes: {running_mean}")
-            if episode != 0 and episode % 50 == 0 and self.checkpoint:
-                self.save_model(episode)         
+            if episode != 0 and episode % 50 == 0 and checkpoint:
+                self.save_checkpoint(episode)         
 
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
         return rewards
 
-    def save_model(self, episode: int):
-        script_dir = os.path.dirname(__file__)
-        backup_file = f"ddqn_{episode}.h5"
-        self.policy.save(os.path.join(script_dir, backup_file))
-
-    def play(self, env: Env, checkpoint, episodes=1, render=False):
-        script_dir = os.path.dirname(__file__)
+    def play(self, env: Env, episodes: int, checkpoint_path: str, render: bool) -> "list[float]":
         try:
-            checkpoint_path = os.path.join(script_dir, checkpoint)
-            self.policy = load_model(checkpoint_path)
+            self.load_checkpoint(checkpoint_path)
         except ImportError:
-            print(f"Loading from {checkpoint} is not available")
+            print(f"Loading from {checkpoint_path} is not available")
             return
         except IOError:
-            print(f"Checkpoint file {checkpoint} is invalid")
+            print(f"Checkpoint file {checkpoint_path} is invalid")
             return
         
         rewards = []
@@ -166,3 +161,13 @@ class DDQN(Agent):
     
         return rewards
 
+    def save_checkpoint(self, episode: int):
+        script_dir = os.path.dirname(__file__)
+        backup_file = f"ddqn_{episode}.h5"
+        self.policy.save(os.path.join(script_dir, backup_file))
+
+    def load_checkpoint(self, checkpoint_path: str):
+        try:
+            self.policy = load_model(checkpoint_path)
+        except Exception as _:
+            raise

@@ -12,17 +12,17 @@ class Agent:
     def choose_action(self, state):
         raise NotImplementedError()
 
-    def train(self, env: Env) -> "list[float]":
+    def train(self, env: Env, episodes: int, checkpoint: bool, render: bool) -> "list[float]":
         raise NotImplementedError()
 
     def remember(self, transition: Transition):
         self.memory.add(transition)
     
-    def save_model(self, episode: int):
+    def play(env: Env, episodes: int, checkpoint_path: str, render: bool) -> "list[float]":
         raise NotImplementedError()
 
-    def play(env: Env, checkpoint: str, episodes: int, render: bool) -> "list[float]":
+    def save_checkpoint(self, episode: int):
         raise NotImplementedError()
 
-    def load(self):
+    def load_checkpoint(self, checkpoint_path: str):
         raise NotImplementedError()
