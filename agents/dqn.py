@@ -32,7 +32,7 @@ class DQN(Agent):
         model.add(Dense(150, input_dim=self.state_space, activation='relu'))
         model.add(Dense(120, activation='relu'))
         model.add(Dense(self.action_space, activation='linear'))
-        model.compile(loss='mse', optimizer=Nadam(lr=self.learning_rate))
+        model.compile(loss='mse', optimizer=Nadam(learning_rate=self.learning_rate))
         return model
 
     def choose_action(self, state):
@@ -132,7 +132,7 @@ class DQN(Agent):
                 if render:
                     env.render('rgb_array')
 
-                action = np.argmax(self.policy.predict(state)[0])
+                action = np.argmax(self.model.predict(state)[0])
                 new_state, reward, done, _ = env.step(action)
                 new_state = np.reshape(new_state, (1,8))
 
