@@ -12,3 +12,5 @@ authors:
 title: "Buzz - Reinforcement Learning Agents for the Lunar Lander Environment"
 version: 1.0.0
 date-released: 2023-08-01
+license: MIT
+repository-code: "https://github.com/CM30359-Group-2/buzz"
