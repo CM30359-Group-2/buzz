@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Wood
+    given-names: Max
+  - family-names: Archibold
+    given-names: Cameron
+  - family-names: Grant
+    given-names: Cameron
+  - family-names: Bevan
+    given-names: Rowan
+title: "Buzz - Reinforcement Learning Agents for the Lunar Lander Environment"
+version: 1.0.0
+date-released: 2022-08-01
