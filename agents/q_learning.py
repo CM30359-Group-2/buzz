@@ -171,7 +171,7 @@ class QLearning(Agent):
         script_dir = os.path.dirname(__file__)
         backup_file = f"q_{episode}.pickle"
         print(f"Backing up Q-table to {backup_file}")
-        with open(os.path.join(script_dir, "dict"), "wb") as f:
+        with open(os.path.join(script_dir, backup_file), "wb") as f:
                     pickle.dump(self.memory, f)
     
     def load_checkpoint(self, checkpoint_path: str):
